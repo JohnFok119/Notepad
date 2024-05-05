@@ -15,6 +15,7 @@ import javax.swing.event.CaretEvent;
 import javax.swing.event.CaretListener;
 import javax.swing.filechooser.FileFilter;
 import javax.swing.filechooser.FileNameExtensionFilter;
+import javax.swing.text.DefaultEditorKit;
 
 import java.awt.*;
 import java.awt.event.*;
@@ -77,29 +78,53 @@ public class Notepad
         frame.setIconImage(new ImageIcon("Notepad.png").getImage());
         frame.setJMenuBar(createMenu(frame));
 
+        Font font = new Font("Courier", 0, 12);
+
         textArea = new JTextArea();
+        textArea.setFont(font);
+
+        // ============================= Right-Click ===================================
+        JPopupMenu popupMenu = new JPopupMenu();
+        JMenuItem popupCut = new JMenuItem("Cut", 't');
+        popupCut.addActionListener(event -> CutMethod());
+        JMenuItem popupCopy = new JMenuItem("Copy", 'C');
+        popupCopy.addActionListener(event -> CopyMethod());
+        JMenuItem popupPaste = new JMenuItem("Paste", 'P');
+        popupPaste.addActionListener(event -> PasteMethod());
+
+        popupMenu.add(popupCut);
+        popupMenu.add(popupCopy);
+        popupMenu.add(popupPaste);
+
+        
+        textArea.addMouseListener(new MouseAdapter() 
+        {
+            public void mouseClicked(MouseEvent me)
+            {
+                if(SwingUtilities.isRightMouseButton(me))
+                {
+                    popupMenu.show(textArea, me.getX(), me.getY());
+                }
+            }
+        });
 
         JScrollPane scrollPane = new JScrollPane(textArea);
 
-        Exit.addActionListener(new ActionListener() 
-        {
-            public void actionPerformed(ActionEvent ae)
+
+//============================= File =============================
+
+        // ============================= New MenuItem ===================================
+        New.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent aEvent)
             {
-                checkForChanges(); 
                 if(edited == true)
                 {
-                    showSaveDialog(frame, edited, fileName);
-                } else
-                {
-                    frame.dispose();
+
                 }
-
             }
-            
-        }); 
-  
+        });
 
-        // ============================= Open ===================================
+        // ============================= Open... MenuItem ===================================
         JFileChooser fileChooser = new JFileChooser();
         fileChooser.setAcceptAllFileFilterUsed(false);
         FileNameExtensionFilter javaFilter = new FileNameExtensionFilter(".java files","java");
@@ -110,7 +135,9 @@ public class Notepad
         {
             public void actionPerformed(ActionEvent ae) 
             {
-                int result = fileChooser.showOpenDialog(frame);
+                int result = 0;
+                result = fileChooser.showOpenDialog(frame);
+
                 if( result == JFileChooser.APPROVE_OPTION)
                 {
                     File file = fileChooser.getSelectedFile();
@@ -130,26 +157,126 @@ public class Notepad
             }
         });
 
-        // ============================= Save ===================================
-
-
+        // ============================= Save MenuItem ===================================
         Save.addActionListener(new ActionListener() 
         {
             public void actionPerformed(ActionEvent ae)
             {
+                System.out.println("We are using SAVE");
                 checkForChanges();   
-                save();
+                if(edited == true)
+                {
+                    save();
+                }
+
+            }
+        });
+
+        // ============================= Save As MenuItem ===================================
+        //Bug: If we make changes and hit save but don't actually save anything
+        //      then try to save it, we SHOULD get the save menu again but we don't.
+        //Solution: We have to check IF the file exists or not using the fileName
+        //          OR
+        //         ** Have a check to see if the try catch in void save() was actually used **
+        SaveAs.addActionListener(new ActionListener() 
+        {
+            public void actionPerformed(ActionEvent ae)
+            {
+                System.out.println("We are using SAVE AS");
+                int result = fileChooser.showSaveDialog(frame);
+                File file = fileChooser.getSelectedFile();
+                fileName = file.getName();
+                filePath = file.getAbsolutePath();
+                System.out.println(fileName);
+                try {
+                    FileReader fileReader = new FileReader(file);
+                    textArea.read(fileReader, null);
+                    fileReader.close();
+                } catch(IOException exception)
+                {
+                    Dialogs.showFailedDialog(frame);
+                }
+            }
+        });
+
+        // ============================= Exit MenuItem ===================================
+        Exit.addActionListener(new ActionListener() 
+        {
+            public void actionPerformed(ActionEvent ae)
+            {
+                checkForChanges(); 
+                if(edited == true)
+                {
+                    showSaveDialog(frame, edited, fileName);
+                } else
+                {
+                    frame.dispose();
+                }
+
+            }
+            
+        }); 
+
+
+//============================= Edit =============================
+
+        //============================= Cut/Copy/Paste =============================
+        Cut.addActionListener(event -> CutMethod());
+        Copy.addActionListener(event -> CopyMethod());
+        Paste.addActionListener(event -> PasteMethod());
+
+        //============================= Delete =============================
+        
+        //============================= Find =============================
+        Find.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent ae)
+            {
+                Dialogs.showFindDialog(frame, "");
+            }
+        });
+
+        //============================= Go To... =============================
+
+        // ============================= Font Chooser MenuItem ===================================
+        Font.addActionListener(new ActionListener() 
+        {
+            public void actionPerformed(ActionEvent ae)
+            {
+                Font newFont = Dialogs.fontChooser(frame, textArea.getText(), font);
+                // System.out.println("\nFont: " + newFont.getFontName() +
+                //                    "\nStyle: " + newFont.getStyle() + 
+                //                    "\nSize: " + newFont.getSize());
+                textArea.setFont(newFont);
             }
         });
 
 
+
+        // ============================= Other Methods ===================================
         textArea.addCaretListener(new CaretListener() 
         {
             public void caretUpdate(CaretEvent ce) 
             {
                 String str = textArea.getText();
                 // jlabMsg.setText("Current size: " + str.length());
-                // findIndex = textArea.getCaretPosition();
+                findIndex = textArea.getCaretPosition();
+                // System.out.println(findIndex);
+            }
+        });
+
+
+        //Window Listener
+        frame.addWindowListener(new WindowAdapter() {
+            public void windowClosing(WindowEvent wEvent)
+            {
+                checkForChanges(); 
+                if(edited == true)
+                {
+                    showSaveDialog(frame, edited, fileName);
+                } else
+                {
+                    frame.dispose();
+                }
             }
         });
 
@@ -213,6 +340,38 @@ public class Notepad
 
 
 
+    public void CutMethod()
+    {
+        String selectedText = textArea.getSelectedText();
+        if(selectedText != null)
+        {
+            DefaultEditorKit.CutAction cutAction = new DefaultEditorKit.CutAction();
+            cutAction.actionPerformed(new ActionEvent(textArea, ActionEvent.ACTION_PERFORMED, null));
+        }
+    }
+
+
+    public void CopyMethod() 
+    {
+        String selectedText = textArea.getSelectedText();
+        if (selectedText != null) 
+        {
+            DefaultEditorKit.CopyAction copyAction = new DefaultEditorKit.CopyAction();
+            copyAction.actionPerformed(new ActionEvent(textArea, ActionEvent.ACTION_PERFORMED, null));
+        }
+    }
+
+    public void PasteMethod() 
+    {
+        DefaultEditorKit.PasteAction pasteAction = new DefaultEditorKit.PasteAction();
+        pasteAction.actionPerformed(new ActionEvent(textArea, ActionEvent.ACTION_PERFORMED, null));
+    }
+
+    public void find(int start)
+    {
+        // String findString = textArea.getText()
+    }
+
     public void showSaveDialog(JFrame frame, Boolean edited, String fileName)
     {
         JDialog saveDialog = new JDialog(frame, "Notepad", true);
@@ -227,10 +386,10 @@ public class Notepad
             public void actionPerformed(ActionEvent ae)
             {
                 save();
+                saveDialog.dispose();
+                frame.dispose();
             }
         });
-
-
 
         JButton dontSaveButton = new JButton("Don't Save");
         dontSaveButton.addActionListener(new ActionListener() 
@@ -258,7 +417,6 @@ public class Notepad
         saveDialog.setLocationRelativeTo(frame);
         saveDialog.setVisible(true);
     }
-
 
 
 
