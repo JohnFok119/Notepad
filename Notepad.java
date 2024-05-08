@@ -231,11 +231,22 @@ public class Notepad
         Find.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent ae)
             {
-                Dialogs.showFindDialog(frame, "");
+                int foundIndex = Dialogs.showFindDialog(frame, textArea, findIndex);
+                System.out.println(foundIndex);
+                textArea.setCaretPosition(foundIndex);
+                findIndex = foundIndex;
+                textArea.requestFocusInWindow();
             }
         });
 
         //============================= Go To... =============================
+        GoTo.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent aEvent)
+            {
+                Dialogs.showGoToDialog(frame);
+                // textArea.setCaretPosition(findIndex);
+            }
+        });
 
         // ============================= Font Chooser MenuItem ===================================
         Font.addActionListener(new ActionListener() 

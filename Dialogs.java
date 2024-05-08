@@ -13,6 +13,7 @@ import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
+import javax.swing.text.PlainDocument;
 
 import java.awt.*;
 import java.awt.event.*;
@@ -25,6 +26,8 @@ public class Dialogs
 {
     final static String DEFAULT_SAMPLE = "a quick brown fox jumps over the lazy dog 0123456789";
     private static JLabel display;
+    private static String input = "";
+    private static int foundIndex = 0;
 
     private static JDialog dialog;
     private static Font newFont;
@@ -236,6 +239,37 @@ public class Dialogs
         westPanel.add(scrollPane, BorderLayout.CENTER);
 
 
+        //========================= EAST ============================
+        // JPanel eastPanel = new JPanel(new BorderLayout());
+        // JLabel effectsLabel = new JLabel("Effects:");
+
+        // //effect
+        // JCheckBox caps = new JCheckBox("All caps");
+        // caps.setMnemonic('C');
+
+        // eastPanel.add(effectsLabel, BorderLayout.NORTH);
+        // eastPanel.add(caps);
+
+        // ItemListener eastListener = new ItemListener() 
+        // {
+        //     public void itemStateChanged(ItemEvent ie)
+        //     {
+        //         if(ie.getStateChange() == ItemEvent.SELECTED)
+        //         {
+        //             display.setText(display.getText().toUpperCase());
+        //         }
+        //         else 
+        //         {
+        //             display.setText(display.getText().toLowerCase());
+        //         }
+        //     }
+        // };
+
+        // caps.addItemListener(eastListener);
+
+
+
+
 //========================= SOUTH ============================
         display = new JLabel(initialString == null ? DEFAULT_SAMPLE : initialString, JLabel.CENTER);
         JButton ok = new JButton("OK");
@@ -269,6 +303,8 @@ public class Dialogs
         
         dialog.add(centerPanel, BorderLayout.CENTER);
 
+        // dialog.add(eastPanel,BorderLayout.EAST);
+
         dialog.add(southPanel,BorderLayout.SOUTH);
 
 //========================= Final Steps ============================
@@ -286,21 +322,44 @@ public class Dialogs
         return font;
     }
 
-    public static void showFindDialog(JFrame frame, String findString)
+    public static Integer showFindDialog(JFrame frame, JTextArea textArea, Integer findIndex)
     {
-
+        //TODO
         //Bug: it looks like ass
         JDialog findDialog = new JDialog(frame, "Find", false);
         findDialog.setResizable(false);
-        findDialog.setSize(300, 100);
+        findDialog.setSize(400, 100);
         findDialog.setLayout(new GridLayout(2,3));
 
         JLabel findLabel = new JLabel("Find what:  ");
         findLabel.setDisplayedMnemonic('n');
 
         JTextField textField = new JTextField(100);
+        textField.setActionCommand("Input");
+        // int foundIndex = 0;
+        String searchString = textField.getText();
+        String currentString = textArea.getText();
+        int index = currentString.indexOf(searchString, findIndex);
+        // foundIndex = index;
+
         JButton findNext = new JButton("Find Next");
         findNext.setMnemonic('F');
+        findNext.addActionListener(new ActionListener() 
+        {
+            public void actionPerformed(ActionEvent ae)
+            {
+                if (index > -1) {
+                    // If found, set focus to text area
+                    // and move caret to the location.
+                    // textArea.setCaretPosition(index);
+                    foundIndex = index; // update the find index
+                    // textArea.requestFocusInWindow();
+                    System.out.println("String found");
+                } else {
+                    System.out.println("String NOT found");
+                }
+            }
+        });
 
         JButton cancel = new JButton("Cancel");
 
@@ -315,19 +374,78 @@ public class Dialogs
         findDialog.add(findLabel);
         findDialog.add(textField);
         findDialog.add(findNext);
-        // findDialog.add(Box.createRigidArea(new Dimension(0, 0)));
         findDialog.add(cancel);
         findDialog.add(matchCase);
         findDialog.add(wrapAround);
         
         findDialog.setLocationRelativeTo(frame);
         findDialog.setVisible(true);
+
+        return foundIndex;
+    }
+
+
+    public static int showGoToDialog(JFrame frame)
+    {
+        JDialog GoToDialog = new JDialog(frame, "To To Line", true);
+        GoToDialog.setResizable(false);
+        GoToDialog.setSize(250, 125);
+        GoToDialog.setLayout(new FlowLayout());
+
+        JLabel lineLabel = new JLabel("Line number: ");
+
+        JTextField textField = new JTextField(20);
+        textField.setActionCommand("Input");
+        // textField.setEditable(true);
+
+        JButton GoToButton = new JButton("Go To");
+        GoToButton.addActionListener(new ActionListener() 
+        {
+            public void actionPerformed(ActionEvent ae)
+            {
+                input = textField.getText();
+                // System.out.println(input);
+                for(int i = 0; i < input.length() - 1; i++)
+                {
+                    char temp = input.charAt(i);
+                    if(Character.isDigit(temp) == true)
+                    {
+                        foundIndex = Integer.valueOf(input);
+                        
+                    }
+                    else
+                    {
+                        JOptionPane.showMessageDialog(frame, "Input must be a number!", "Error", JOptionPane.ERROR_MESSAGE);
+                    }
+                }
+                System.out.println(foundIndex);
+                // returnInt(foundIndex);
+            }
+        });
+        JButton CancelButton = new JButton("Cancel");
+        CancelButton.addActionListener(event -> GoToDialog.dispose());
+
+        // GoToButton.addActionListener();
+
+        GoToDialog.add(lineLabel);
+        GoToDialog.add(textField);
+        GoToDialog.add(GoToButton);
+        GoToDialog.add(CancelButton);
+
+        GoToDialog.setLocationRelativeTo(frame);
+        GoToDialog.setVisible(true);
+        return foundIndex;
     }
 
 
     public static String openFile(JFrame frame, String fileName)
     {
         return "";
+    }
+
+    public static Integer returnInt(Integer value)
+    {
+        return value;
     }
 
 }
