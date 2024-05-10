@@ -13,6 +13,8 @@ import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
+import javax.swing.table.DefaultTableModel;
+import javax.swing.text.BadLocationException;
 import javax.swing.text.PlainDocument;
 
 import java.awt.*;
@@ -28,6 +30,10 @@ public class Dialogs
     private static JLabel display;
     private static String input = "";
     private static int foundIndex = 0;
+    private static int currentCaretPosition = 0;
+    private static boolean windowReturn = true;
+
+    private static Boolean caseSensitive = true;
 
     private static JDialog dialog;
     private static Font newFont;
@@ -317,62 +323,80 @@ public class Dialogs
         return(newFont);
     }
 
-    private Font returnFont(Font font)
+    public static Integer showFindDialog(JFrame frame, JTextArea textArea, int findIndex, Boolean findNextBool)
     {
-        return font;
-    }
-
-    public static Integer showFindDialog(JFrame frame, JTextArea textArea, Integer findIndex)
-    {
-        //TODO
-        //Bug: it looks like ass
         JDialog findDialog = new JDialog(frame, "Find", false);
         findDialog.setResizable(false);
-        findDialog.setSize(400, 100);
-        findDialog.setLayout(new GridLayout(2,3));
+        findDialog.setSize(475, 120);
+        findDialog.setLayout(new FlowLayout());
 
         JLabel findLabel = new JLabel("Find what:  ");
         findLabel.setDisplayedMnemonic('n');
 
-        JTextField textField = new JTextField(100);
+        JTextField textField = new JTextField(30);
         textField.setActionCommand("Input");
-        // int foundIndex = 0;
-        String searchString = textField.getText();
-        String currentString = textArea.getText();
-        int index = currentString.indexOf(searchString, findIndex);
-        // foundIndex = index;
+
+        currentCaretPosition = findIndex;
+
+        JButton findFromTop = new JButton("Find From Top");
 
         JButton findNext = new JButton("Find Next");
         findNext.setMnemonic('F');
-        findNext.addActionListener(new ActionListener() 
+
+
+
+        if(findNextBool == false)
         {
-            public void actionPerformed(ActionEvent ae)
+            findNext.setEnabled(false);
+            findNext.setVisible(false);
+            findDialog.setSize(475, 100);
+        }
+
+        JButton cancel = new JButton("Cancel");
+        cancel.addActionListener(event -> {
+            findDialog.dispose();
+        });
+
+        JCheckBox matchCase = new JCheckBox("Match case");
+        matchCase.setSelected(true);
+        matchCase.setMnemonic('c');
+        matchCase.addActionListener(event -> {
+            if(matchCase.isSelected())
             {
-                if (index > -1) {
-                    // If found, set focus to text area
-                    // and move caret to the location.
-                    // textArea.setCaretPosition(index);
-                    foundIndex = index; // update the find index
-                    // textArea.requestFocusInWindow();
-                    System.out.println("String found");
-                } else {
-                    System.out.println("String NOT found");
-                }
+                caseSensitive = true;
+            } else
+            {
+                caseSensitive = false;
             }
         });
 
-        JButton cancel = new JButton("Cancel");
-
-        JCheckBox matchCase = new JCheckBox("Match case");
-        matchCase.setMnemonic('c');
-
         JCheckBox wrapAround = new JCheckBox("Wrap around");
         wrapAround.setMnemonic('a');
+        wrapAround.addActionListener(event -> {
+            if(wrapAround.isSelected())
+            {
+                textArea.setLineWrap(true);
+            } else
+            {
+                textArea.setLineWrap(false);
+            }
+        });
+
+
+        findFromTop.addActionListener(event -> {
+            currentCaretPosition = 0;
+            find(currentCaretPosition, textField, textArea, caseSensitive);
+        });
+
+        findNext.addActionListener(event -> { 
+            find(currentCaretPosition + 1, textField, textArea, caseSensitive); 
+        });
 
 
 
         findDialog.add(findLabel);
         findDialog.add(textField);
+        findDialog.add(findFromTop);
         findDialog.add(findNext);
         findDialog.add(cancel);
         findDialog.add(matchCase);
@@ -385,9 +409,9 @@ public class Dialogs
     }
 
 
-    public static int showGoToDialog(JFrame frame)
+    public static void showGoToDialog(JFrame frame, JTextArea textArea, int findIndex)
     {
-        JDialog GoToDialog = new JDialog(frame, "To To Line", true);
+        JDialog GoToDialog = new JDialog(frame, "To To Line", false);
         GoToDialog.setResizable(false);
         GoToDialog.setSize(250, 125);
         GoToDialog.setLayout(new FlowLayout());
@@ -408,22 +432,39 @@ public class Dialogs
                 for(int i = 0; i < input.length() - 1; i++)
                 {
                     char temp = input.charAt(i);
-                    if(Character.isDigit(temp) == true)
-                    {
-                        foundIndex = Integer.valueOf(input);
-                        
-                    }
-                    else
+                    if(Character.isDigit(temp) != true)
                     {
                         JOptionPane.showMessageDialog(frame, "Input must be a number!", "Error", JOptionPane.ERROR_MESSAGE);
+                        break;
+                        
                     }
                 }
-                System.out.println(foundIndex);
-                // returnInt(foundIndex);
+
+                foundIndex = Integer.valueOf(input);
+                // System.out.println(foundIndex);
+                if(foundIndex <= findIndex)
+                {
+                    try {
+                        int offset = textArea.getLineStartOffset(foundIndex - 1);
+                        textArea.setCaretPosition(offset);
+                    } catch (BadLocationException e)
+                    {
+                        e.printStackTrace();
+                    }
+                    
+                    textArea.requestFocus();
+                }
+                else
+                {
+                    JOptionPane.showMessageDialog(frame, "Line Not in Range", "Error", JOptionPane.ERROR_MESSAGE);
+                }
+                
             }
         });
         JButton CancelButton = new JButton("Cancel");
-        CancelButton.addActionListener(event -> GoToDialog.dispose());
+        CancelButton.addActionListener(event -> {
+            GoToDialog.dispose();
+        });
 
         // GoToButton.addActionListener();
 
@@ -434,7 +475,6 @@ public class Dialogs
 
         GoToDialog.setLocationRelativeTo(frame);
         GoToDialog.setVisible(true);
-        return foundIndex;
     }
 
 
@@ -443,9 +483,72 @@ public class Dialogs
         return "";
     }
 
-    public static Integer returnInt(Integer value)
+
+    public static void find(int start, JTextField textField, JTextArea textArea, Boolean caseSensitive)
     {
-        return value;
+
+        String searchString = textField.getText();
+        // System.out.println(searchString + " is the input");
+        if(!searchString.isEmpty())
+        {
+            String currentText = "";
+            if(caseSensitive)
+            {
+                currentText = textArea.getText();
+
+            } else
+            {
+                currentText = textArea.getText();
+                currentText = currentText.toLowerCase();
+                searchString = searchString.toLowerCase();
+            }
+
+            // System.out.println(caseSensitive);
+            int index = currentText.indexOf(searchString,start);
+
+            if (index > -1) 
+            {
+                // System.out.println(index);
+                textArea.setCaretPosition(index);
+                currentCaretPosition = index; // update the find index
+
+
+            } else {
+                JOptionPane.showMessageDialog(textField, "Search text not found", "Find", JOptionPane.INFORMATION_MESSAGE);
+            }
+            textArea.requestFocus();
+
+        }
     }
+
+
+    public static void showExtraCredits(JFrame frame)
+    {
+        JDialog extraCreditsDialog = new JDialog(frame, "Extra Credit Features", false);
+        extraCreditsDialog.setResizable(false);
+        extraCreditsDialog.setSize(200, 200);
+        extraCreditsDialog.setLayout(new FlowLayout());
+
+        Object[][] implemented = {
+            {"Page Setup...", true },
+            {"Print...", true },
+            {"Undo", false },
+            {"Find Next", true },
+            {"Replace", false },
+            {"Status Bar", true },
+            {"View Help", true },
+            {"Extra Credits", true }
+        };
+
+        String[] columnNames = {"Feature", "Implemented?"};
+
+        DefaultTableModel model = new DefaultTableModel(implemented, columnNames);
+        JTable extraCredits = new JTable(model);
+
+        extraCreditsDialog.add(extraCredits);
+        extraCreditsDialog.setLocationRelativeTo(frame);
+        extraCreditsDialog.setVisible(true);
+    }
+
 
 }

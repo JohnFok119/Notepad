@@ -7,21 +7,30 @@
 // Description:
 //              notepad
 //
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 
 import javax.swing.*;
 import javax.swing.event.CaretEvent;
 import javax.swing.event.CaretListener;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import javax.swing.filechooser.FileFilter;
 import javax.swing.filechooser.FileNameExtensionFilter;
+import javax.swing.text.BadLocationException;
 import javax.swing.text.DefaultEditorKit;
 
 import java.awt.*;
+import javax.swing.border.*;
 import java.awt.event.*;
+import java.awt.print.PrinterException;
+import java.awt.print.PrinterJob;
 import java.io.FileWriter;
 import java.io.IOException;
-
+import java.sql.Time;
+import java.time.*;
+import java.time.format.DateTimeFormatter;
 
 
 
@@ -33,8 +42,19 @@ public class Notepad
     private String fileName = "";
     private String filePath = "";
     private Boolean edited = false;
-    String originalText = "";
-    String finalText = "";
+    private Boolean fileInputted = false;
+    private String originalText = "";
+    private String finalText = "";
+    private JFileChooser fileChooser = new JFileChooser();
+    private Font font = new Font("Courier", 0, 12);
+    private Boolean windowReturn = false;
+
+    //status Bar
+    private JLabel lineColumnLabel = new JLabel("Ln " + 1 + ", Col " + 1);
+    private JLabel numOfChars = new JLabel("0 characters");
+    private JLabel lineFeedLabel = new JLabel("Line Feed (\\n)");
+    private JLabel utfLabel = new JLabel("UTF-8");
+    private JLabel zoomLabel = new JLabel("100%");
     // File Menu
     private JMenuItem New;
     private JMenuItem Open;
@@ -68,20 +88,79 @@ public class Notepad
     private JMenuItem ExtraCredits;
     private JMenuItem AboutNotePad;
 
-    public Notepad() 
+    public Notepad(File fileInput) 
     {
-        frame = new JFrame("Untitled - Notepad");
+        if(fileInput.getName().length() > 0)
+        {
+            fileInputted = true;
+            frame = new JFrame(fileInput.getName());
+        }
+        else
+        {
+            frame = new JFrame("Untitled - Notepad");
+        }
+        
         frame.setLayout(new BorderLayout());
         frame.setSize(800, 600);
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
         frame.setLocationRelativeTo(null);
         frame.setIconImage(new ImageIcon("Notepad.png").getImage());
         frame.setJMenuBar(createMenu(frame));
 
-        Font font = new Font("Courier", 0, 12);
 
         textArea = new JTextArea();
+        textArea.addKeyListener(new KeyAdapter() {
+            public void keyPressed(KeyEvent ke)
+            {
+                if(ke.getKeyCode() == KeyEvent.VK_DELETE)
+                {
+                    delete();
+                }
+            }
+        });
+
+        if(fileInputted == true)
+        {
+            try (BufferedReader reader = new BufferedReader(new FileReader(fileInput))) 
+            {
+                StringBuilder content = new StringBuilder();
+                String line;
+
+                while ((line = reader.readLine()) != null) {
+                    content.append(line).append("\n");
+                }
+                textArea.setText(content.toString());
+            } catch (IOException e) 
+            {
+
+                e.printStackTrace();
+            }
+        }
+
         textArea.setFont(font);
+
+        textArea.getDocument().addDocumentListener(new DocumentListener() {
+            @Override
+            public void insertUpdate(DocumentEvent de)
+            {
+                edited = true;
+            }
+
+            @Override
+            public void removeUpdate(DocumentEvent de)
+            {
+                edited = true;
+            }
+
+            @Override
+            public void changedUpdate(DocumentEvent de)
+            {
+                edited = true;
+            }
+        });
+
+
+
 
         // ============================= Right-Click ===================================
         JPopupMenu popupMenu = new JPopupMenu();
@@ -109,168 +188,37 @@ public class Notepad
         });
 
         JScrollPane scrollPane = new JScrollPane(textArea);
+        // Make scroll bars always visible
+        scrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_ALWAYS);
+        scrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
 
 
 //============================= File =============================
+        JPanel statusBar = new JPanel(new GridLayout());
+        Border border = BorderFactory.createEtchedBorder();
+        JSeparator separator = new JSeparator(SwingConstants.VERTICAL);
+        statusBar.setBorder(border);
+        statusBar.add(lineColumnLabel);
+        // statusBar.add(separator);
+        statusBar.add(numOfChars);
+        // statusBar.add(separator);
+        statusBar.add(zoomLabel);
+        // statusBar.add(separator);
+        statusBar.add(lineFeedLabel);
+        // statusBar.add(separator);
+        statusBar.add(utfLabel);
 
-        // ============================= New MenuItem ===================================
-        New.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent aEvent)
-            {
-                if(edited == true)
-                {
-
-                }
-            }
-        });
-
-        // ============================= Open... MenuItem ===================================
-        JFileChooser fileChooser = new JFileChooser();
-        fileChooser.setAcceptAllFileFilterUsed(false);
-        FileNameExtensionFilter javaFilter = new FileNameExtensionFilter(".java files","java");
-        FileNameExtensionFilter textFilter = new FileNameExtensionFilter(".txt files","txt");
-        fileChooser.addChoosableFileFilter(javaFilter);
-        fileChooser.addChoosableFileFilter(textFilter);
-        Open.addActionListener(new ActionListener() 
-        {
-            public void actionPerformed(ActionEvent ae) 
-            {
-                int result = 0;
-                result = fileChooser.showOpenDialog(frame);
-
-                if( result == JFileChooser.APPROVE_OPTION)
-                {
-                    File file = fileChooser.getSelectedFile();
-                    fileName = file.getName();
-                    filePath = file.getAbsolutePath();
-                    System.out.println(fileName);
-                    try {
-                        FileReader fileReader = new FileReader(file);
-                        textArea.read(fileReader, null);
-                        fileReader.close();
-                    } catch(IOException exception)
-                    {
-                        Dialogs.showFailedDialog(frame);
-                    }
-
-                }
-            }
-        });
-
-        // ============================= Save MenuItem ===================================
-        Save.addActionListener(new ActionListener() 
-        {
-            public void actionPerformed(ActionEvent ae)
-            {
-                System.out.println("We are using SAVE");
-                checkForChanges();   
-                if(edited == true)
-                {
-                    save();
-                }
-
-            }
-        });
-
-        // ============================= Save As MenuItem ===================================
-        //Bug: If we make changes and hit save but don't actually save anything
-        //      then try to save it, we SHOULD get the save menu again but we don't.
-        //Solution: We have to check IF the file exists or not using the fileName
-        //          OR
-        //         ** Have a check to see if the try catch in void save() was actually used **
-        SaveAs.addActionListener(new ActionListener() 
-        {
-            public void actionPerformed(ActionEvent ae)
-            {
-                System.out.println("We are using SAVE AS");
-                int result = fileChooser.showSaveDialog(frame);
-                File file = fileChooser.getSelectedFile();
-                fileName = file.getName();
-                filePath = file.getAbsolutePath();
-                System.out.println(fileName);
-                try {
-                    FileReader fileReader = new FileReader(file);
-                    textArea.read(fileReader, null);
-                    fileReader.close();
-                } catch(IOException exception)
-                {
-                    Dialogs.showFailedDialog(frame);
-                }
-            }
-        });
-
-        // ============================= Exit MenuItem ===================================
-        Exit.addActionListener(new ActionListener() 
-        {
-            public void actionPerformed(ActionEvent ae)
-            {
-                checkForChanges(); 
-                if(edited == true)
-                {
-                    showSaveDialog(frame, edited, fileName);
-                } else
-                {
-                    frame.dispose();
-                }
-
-            }
-            
-        }); 
-
-
-//============================= Edit =============================
-
-        //============================= Cut/Copy/Paste =============================
-        Cut.addActionListener(event -> CutMethod());
-        Copy.addActionListener(event -> CopyMethod());
-        Paste.addActionListener(event -> PasteMethod());
-
-        //============================= Delete =============================
         
-        //============================= Find =============================
-        Find.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent ae)
-            {
-                int foundIndex = Dialogs.showFindDialog(frame, textArea, findIndex);
-                System.out.println(foundIndex);
-                textArea.setCaretPosition(foundIndex);
-                findIndex = foundIndex;
-                textArea.requestFocusInWindow();
-            }
-        });
-
-        //============================= Go To... =============================
-        GoTo.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent aEvent)
-            {
-                Dialogs.showGoToDialog(frame);
-                // textArea.setCaretPosition(findIndex);
-            }
-        });
-
-        // ============================= Font Chooser MenuItem ===================================
-        Font.addActionListener(new ActionListener() 
-        {
-            public void actionPerformed(ActionEvent ae)
-            {
-                Font newFont = Dialogs.fontChooser(frame, textArea.getText(), font);
-                // System.out.println("\nFont: " + newFont.getFontName() +
-                //                    "\nStyle: " + newFont.getStyle() + 
-                //                    "\nSize: " + newFont.getSize());
-                textArea.setFont(newFont);
-            }
-        });
-
-
 
         // ============================= Other Methods ===================================
+
         textArea.addCaretListener(new CaretListener() 
         {
             public void caretUpdate(CaretEvent ce) 
             {
                 String str = textArea.getText();
-                // jlabMsg.setText("Current size: " + str.length());
                 findIndex = textArea.getCaretPosition();
+                updateStatusBar(lineColumnLabel, numOfChars);
                 // System.out.println(findIndex);
             }
         });
@@ -280,11 +228,13 @@ public class Notepad
         frame.addWindowListener(new WindowAdapter() {
             public void windowClosing(WindowEvent wEvent)
             {
-                checkForChanges(); 
+                // checkForChanges(); 
+                System.out.println("We have selected X");
                 if(edited == true)
                 {
                     showSaveDialog(frame, edited, fileName);
-                } else
+                } 
+                else
                 {
                     frame.dispose();
                 }
@@ -292,8 +242,27 @@ public class Notepad
         });
 
         frame.add(scrollPane);
+        frame.add(statusBar, BorderLayout.SOUTH);
 
         frame.setVisible(true);
+    }
+
+
+    public void updateStatusBar(JLabel lineColumnLabel, JLabel numOfChars)
+    {
+        int lineNumber = 1;
+        int columnNumber = 1;
+
+        try {
+            lineNumber = textArea.getLineOfOffset(findIndex) + 1;
+            columnNumber = findIndex - textArea.getLineStartOffset(lineNumber - 1) + 1;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        lineColumnLabel.setText("Ln " + lineNumber + ", Col " + columnNumber);
+        numOfChars.setText(findIndex + " characters");
+
     }
 
     public void checkForChanges()
@@ -344,7 +313,7 @@ public class Notepad
             }
             else if(result == JFileChooser.CANCEL_OPTION)
             {
-                edited = false;
+                edited = true;
             }
 		}
 	}
@@ -361,6 +330,21 @@ public class Notepad
         }
     }
 
+    public void delete()
+    {
+        int startIndex = findIndex - 2;
+        int endIndex = findIndex - 1;
+        if(startIndex >= 0 && endIndex >= 0)
+        {
+            try {
+                textArea.getDocument().remove(startIndex, endIndex - startIndex);
+                textArea.setCaretPosition(startIndex);
+            } catch (BadLocationException ex) {
+                ex.printStackTrace();
+            }
+        }
+
+    }
 
     public void CopyMethod() 
     {
@@ -383,8 +367,9 @@ public class Notepad
         // String findString = textArea.getText()
     }
 
-    public void showSaveDialog(JFrame frame, Boolean edited, String fileName)
+    public Boolean showSaveDialog(JFrame frame, Boolean edited, String fileName)
     {
+
         JDialog saveDialog = new JDialog(frame, "Notepad", true);
         saveDialog.setResizable(false);
         saveDialog.setSize(300, 75);
@@ -416,6 +401,8 @@ public class Notepad
         {
             public void actionPerformed(ActionEvent ae)
             {
+                // System.out.println("Cancel was selected");
+                windowReturn = true;
                 saveDialog.dispose();
             }
         });
@@ -427,6 +414,7 @@ public class Notepad
 
         saveDialog.setLocationRelativeTo(frame);
         saveDialog.setVisible(true);
+        return windowReturn;
     }
 
 
@@ -439,23 +427,129 @@ public class Notepad
 
         New = new JMenuItem("New");
         New.setAccelerator(KeyStroke.getKeyStroke('N', ActionEvent.CTRL_MASK));
+        New.addActionListener(new ActionListener() 
+        {
+            public void actionPerformed(ActionEvent aEvent)
+            {
+                // checkForChanges();
+                if(edited == true)
+                {
+                    save();
+                    textArea.setText("");
+                }
+            }
+        });
 
         Open = new JMenuItem("Open...");
         Open.setAccelerator(KeyStroke.getKeyStroke('O', ActionEvent.CTRL_MASK));
 
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setAcceptAllFileFilterUsed(false);
+        FileNameExtensionFilter javaFilter = new FileNameExtensionFilter(".java files","java");
+        FileNameExtensionFilter textFilter = new FileNameExtensionFilter(".txt files","txt");
+        fileChooser.addChoosableFileFilter(javaFilter);
+        fileChooser.addChoosableFileFilter(textFilter);
+        Open.addActionListener(new ActionListener() 
+        {
+            public void actionPerformed(ActionEvent ae) 
+            {
+                int result = 0;
+                result = fileChooser.showOpenDialog(frame);
+
+                if( result == JFileChooser.APPROVE_OPTION)
+                {
+                    File file = fileChooser.getSelectedFile();
+                    fileName = file.getName();
+                    filePath = file.getAbsolutePath();
+                    System.out.println(fileName);
+                    try {
+                        FileReader fileReader = new FileReader(file);
+                        textArea.read(fileReader, null);
+                        frame.setTitle(fileName);
+                        fileReader.close();
+                    } catch(IOException exception)
+                    {
+                        Dialogs.showFailedDialog(frame);
+                    }
+
+                }
+            }
+        });
+
         Save = new JMenuItem("Save", 'S');
         Save.setAccelerator(KeyStroke.getKeyStroke('S', ActionEvent.CTRL_MASK));
+        Save.addActionListener(new ActionListener() 
+        {
+            public void actionPerformed(ActionEvent ae)
+            {
+                System.out.println("We are using SAVE");
+                // checkForChanges();   
+                if(edited == true)
+                {
+                    save();
+                }
+
+            }
+        });
 
         SaveAs = new JMenuItem("Save As...", 'A');
+        SaveAs.addActionListener(new ActionListener() 
+        {
+            public void actionPerformed(ActionEvent ae)
+            {
+                System.out.println("We are using SAVE AS");
+                int result = fileChooser.showSaveDialog(frame);
+                File file = fileChooser.getSelectedFile();
+                fileName = file.getName();
+                filePath = file.getAbsolutePath();
+                System.out.println(fileName);
+                try {
+                    FileReader fileReader = new FileReader(file);
+                    textArea.read(fileReader, null);
+                    fileReader.close();
+                } catch(IOException exception)
+                {
+                    Dialogs.showFailedDialog(frame);
+                }
+            }
+        });
 
         PageSetUp = new JMenuItem("Page Setup", 'u');
         PageSetUp.setEnabled(false);
 
         Print = new JMenuItem("Print", 'P');
         Print.setAccelerator(KeyStroke.getKeyStroke('P', ActionEvent.CTRL_MASK));
-        Print.setEnabled(false);
+        Print.addActionListener(event -> {
+            try {
+                PrinterJob printerJob = PrinterJob.getPrinterJob();
+                if(printerJob.printDialog())
+                {
+                    printerJob.print();
+                }
+            } catch(PrinterException pe)
+            {
+                pe.printStackTrace();
+            }
+           
+        });
 
         Exit = new JMenuItem("Exit", 'x');
+        Exit.addActionListener(new ActionListener() 
+        {
+            public void actionPerformed(ActionEvent ae)
+            {
+                // checkForChanges(); 
+                if(edited == true)
+                {
+                    showSaveDialog(frame, edited, fileName);
+                } else
+                {
+                    frame.dispose();
+                }
+
+            }
+            
+        }); 
 
         fileMenu.add(New);
         fileMenu.add(Open);
@@ -476,21 +570,48 @@ public class Notepad
 
         Cut = new JMenuItem("Cut", 't');
         Cut.setAccelerator(KeyStroke.getKeyStroke('X', ActionEvent.CTRL_MASK));
+        Cut.addActionListener(event -> CutMethod());
 
         Copy = new JMenuItem("Copy", 'C');
         Copy.setAccelerator(KeyStroke.getKeyStroke('C', ActionEvent.CTRL_MASK));
+        Copy.addActionListener(event -> CopyMethod());
 
         Paste = new JMenuItem("Paste", 'P');
         Paste.setAccelerator(KeyStroke.getKeyStroke('V', ActionEvent.CTRL_MASK));
+        Paste.addActionListener(event -> PasteMethod());
 
         Delete = new JMenuItem("Delete");
         Delete.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0));
+        Delete.addActionListener(event -> { 
+            delete();
+        });
+
+
 
         Find = new JMenuItem("Find...", 'F');
         Find.setAccelerator(KeyStroke.getKeyStroke('F', ActionEvent.CTRL_MASK));
+        Find.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent ae)
+            {
+                int foundIndex = Dialogs.showFindDialog(frame, textArea, findIndex + 1, false);
+                // System.out.println(foundIndex);
+                textArea.setCaretPosition(foundIndex);
+                findIndex = foundIndex;
+                textArea.requestFocusInWindow();
+            }
+        });
 
         FindNext = new JMenuItem("Find Next", 'N');
-        FindNext.setEnabled(false);
+        FindNext.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent ae)
+            {
+                int foundIndex = Dialogs.showFindDialog(frame, textArea, findIndex + 1, true);
+                // System.out.println(foundIndex);
+                textArea.setCaretPosition(foundIndex);
+                findIndex = foundIndex;
+                textArea.requestFocusInWindow();
+            }
+        });
 
         Replace = new JMenuItem("Replace", 'R');
         Replace.setAccelerator(KeyStroke.getKeyStroke('H', ActionEvent.CTRL_MASK));
@@ -498,12 +619,28 @@ public class Notepad
 
         GoTo = new JMenuItem("Go To...", 'G');
         GoTo.setAccelerator(KeyStroke.getKeyStroke('G', ActionEvent.CTRL_MASK));
+        GoTo.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent aEvent)
+            {
+                Dialogs.showGoToDialog(frame, textArea, findIndex);
+            }
+        });
 
         SelectAll = new JMenuItem("Select All", 'A');
         SelectAll.setAccelerator(KeyStroke.getKeyStroke('A', ActionEvent.CTRL_MASK));
+        SelectAll.addActionListener(event -> {
+            textArea.selectAll();
+        });
 
         TimeDate = new JMenuItem("Time/Date", 'D');
         TimeDate.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_F5, 0));
+        TimeDate.addActionListener(event -> {
+            LocalDateTime currentDate = LocalDateTime.now();
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("H:m a MM/d/yyyy");
+            String date = currentDate.format(formatter);
+            textArea.append(date);
+        
+        });
 
         editMenu.add(Undo);
         editMenu.addSeparator();
@@ -527,17 +664,46 @@ public class Notepad
         WordWrap = new JMenuItem("Word Wrap", 'W');
 
         Font = new JMenuItem("Font...", 'F');
+        Font.addActionListener(new ActionListener() 
+        {
+            public void actionPerformed(ActionEvent ae)
+            {
+                Font newFont = Dialogs.fontChooser(frame, textArea.getText(), font);
+                // System.out.println("\nFont: " + newFont.getFontName() +
+                //                    "\nStyle: " + newFont.getStyle() + 
+                //                    "\nSize: " + newFont.getSize());
+                textArea.setFont(newFont);
+            }
+        });
 
         Color = new JMenu("Color");
         Color.setMnemonic('C');
         Background = new JMenuItem("Background...", 'B');
+        Background.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent ae)
+            {
+                JColorChooser cc = new JColorChooser();
+                Color selectedColor = cc.showDialog(frame, "Choose a Color for the Background", Color.getBackground());
+                textArea.setBackground(selectedColor);
+            }
+        });
         Foreground = new JMenuItem("Foreground...", 'F');
+        Foreground.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent ae)
+            {
+                JColorChooser cc = new JColorChooser();
+                Color selectedColor = cc.showDialog(frame, "Choose a Color for the Background", Color.getBackground());
+                textArea.setBackground(selectedColor);
+            }
+        });
         Color.add(Background);
         Color.add(Foreground);
 
         formatMenu.add(WordWrap);
         formatMenu.add(Font);
         formatMenu.add(Color);
+
+
         // ============================= View Menu ===================================
         JMenu viewMenu = new JMenu("View");
         viewMenu.setMnemonic('V');
@@ -554,7 +720,10 @@ public class Notepad
         ViewHelp.setEnabled(false);
 
         ExtraCredits = new JMenuItem("Extra Credits...", 'x');
-        ExtraCredits.setEnabled(false);
+        ExtraCredits.addActionListener(event ->
+        {
+            Dialogs.showExtraCredits(frame);
+        });
 
         AboutNotePad = new JMenuItem("About Notepad");
         AboutNotePad.addActionListener(event -> Dialogs.showAboutDialog(frame, AboutNotePad));
@@ -577,6 +746,25 @@ public class Notepad
 
     public static void main(String[] args) 
     {
-        SwingUtilities.invokeLater(() -> new Notepad());
+        if(args.length > 0)
+        {
+            String fileName = args[0];
+            try (FileReader fr = new FileReader(fileName))
+            {
+                File file = new File(fileName);
+                System.out.println(fileName);
+                SwingUtilities.invokeLater(() -> new Notepad(file));
+            } catch (Exception e) 
+            {
+                System.out.println("Invalid File Name\n");
+                e.printStackTrace();
+            }
+        }
+        else
+        {
+            File file = new File("");
+            SwingUtilities.invokeLater(() -> new Notepad(file));
+        }
+        
     }
 }
