@@ -229,7 +229,7 @@ public class Notepad
             public void windowClosing(WindowEvent wEvent)
             {
                 // checkForChanges(); 
-                System.out.println("We have selected X");
+                // System.out.println("We have selected X");
                 if(edited == true)
                 {
                     showSaveDialog(frame, edited, fileName);
@@ -515,7 +515,10 @@ public class Notepad
         });
 
         PageSetUp = new JMenuItem("Page Setup", 'u');
-        PageSetUp.setEnabled(false);
+        PageSetUp.addActionListener(event -> {
+            Dialogs.showPageSetup(frame);
+        });
+        // PageSetUp.setEnabled(false);
 
         Print = new JMenuItem("Print", 'P');
         Print.setAccelerator(KeyStroke.getKeyStroke('P', ActionEvent.CTRL_MASK));
@@ -693,7 +696,7 @@ public class Notepad
             {
                 JColorChooser cc = new JColorChooser();
                 Color selectedColor = cc.showDialog(frame, "Choose a Color for the Background", Color.getBackground());
-                textArea.setBackground(selectedColor);
+                textArea.setForeground(selectedColor);
             }
         });
         Color.add(Background);

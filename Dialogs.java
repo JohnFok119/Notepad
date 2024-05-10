@@ -245,37 +245,6 @@ public class Dialogs
         westPanel.add(scrollPane, BorderLayout.CENTER);
 
 
-        //========================= EAST ============================
-        // JPanel eastPanel = new JPanel(new BorderLayout());
-        // JLabel effectsLabel = new JLabel("Effects:");
-
-        // //effect
-        // JCheckBox caps = new JCheckBox("All caps");
-        // caps.setMnemonic('C');
-
-        // eastPanel.add(effectsLabel, BorderLayout.NORTH);
-        // eastPanel.add(caps);
-
-        // ItemListener eastListener = new ItemListener() 
-        // {
-        //     public void itemStateChanged(ItemEvent ie)
-        //     {
-        //         if(ie.getStateChange() == ItemEvent.SELECTED)
-        //         {
-        //             display.setText(display.getText().toUpperCase());
-        //         }
-        //         else 
-        //         {
-        //             display.setText(display.getText().toLowerCase());
-        //         }
-        //     }
-        // };
-
-        // caps.addItemListener(eastListener);
-
-
-
-
 //========================= SOUTH ============================
         display = new JLabel(initialString == null ? DEFAULT_SAMPLE : initialString, JLabel.CENTER);
         JButton ok = new JButton("OK");
@@ -308,8 +277,6 @@ public class Dialogs
         dialog.add(westPanel, BorderLayout.WEST);
         
         dialog.add(centerPanel, BorderLayout.CENTER);
-
-        // dialog.add(eastPanel,BorderLayout.EAST);
 
         dialog.add(southPanel,BorderLayout.SOUTH);
 
@@ -530,7 +497,7 @@ public class Dialogs
         extraCreditsDialog.setLayout(new FlowLayout());
 
         Object[][] implemented = {
-            {"Page Setup...", true },
+            {"Page Setup...", false },
             {"Print...", true },
             {"Undo", false },
             {"Find Next", true },
@@ -549,6 +516,28 @@ public class Dialogs
         extraCreditsDialog.setLocationRelativeTo(frame);
         extraCreditsDialog.setVisible(true);
     }
+
+    public static void showPageSetup(JFrame frame)
+    {
+        JDialog extraCreditsDialog = new JDialog(frame, "Extra Credit Features", false);
+        extraCreditsDialog.setResizable(false);
+        extraCreditsDialog.setSize(500, 500);
+        extraCreditsDialog.setLayout(new BorderLayout());
+
+
+        JPanel paper = new JPanel(new FlowLayout());
+        JLabel size = new JLabel("Size:");
+        size.setDisplayedMnemonic('z');
+        JLabel source = new JLabel("Source:");
+        source.setDisplayedMnemonic('S');
+
+
+        JPanel orientation = new JPanel(new FlowLayout());
+        JPanel margins = new JPanel(new FlowLayout());
+        JPanel Preview = new JPanel(new FlowLayout());
+        JPanel headerFooter = new JPanel(new FlowLayout());
+    }
+
 
 
 }
